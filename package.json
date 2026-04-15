@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "frontend": "cd frontend && npm run dev -- --port 8001",
+    "backend": "cd backend/app && fastapi dev main.py --port 8002",
+    "dev": "concurrently -n \"FE,BE\" -c \"cyan,magenta\" \"npm run frontend\" \"npm run backend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
