@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.supabase_utils import get_admin_client
+from app.storage.supabase_utils import get_admin_client
 
 app = FastAPI()
 
