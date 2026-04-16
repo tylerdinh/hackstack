@@ -5,6 +5,7 @@
     "dev": "concurrently -n \"FE,BE\" -c \"cyan,magenta\" \"npm run frontend\" \"npm run backend\""
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "concurrently": "^9.2.1"
   }
 }
