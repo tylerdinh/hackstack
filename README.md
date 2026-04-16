@@ -5,9 +5,9 @@ The best tech stack for rapid prototype development, designed to be as minimal a
 
 Frontend: Vite with React (TypeScript + React Compiler), and Tailwind CSS, described specifically in docs/FRONTEND.md
 
-Backend: FastAPI (Python), described specifically in docs/FRONTEND.md
+Backend: FastAPI (Python), described specifically in docs/BACKEND.md
 
-Storage: Supabase
+Storage: Supabase, described specifically in docs/STORAGE.md
 
 ## Build and Run
 
