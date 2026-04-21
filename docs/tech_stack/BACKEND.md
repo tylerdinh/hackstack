@@ -15,12 +15,12 @@
 - **Purpose:** Contains the core functional logic of the application, API routes should call services / services should never know they are being called by an API.
 
 ### `models/`
-**Data Modeling.**
-- **Purpose:** Definitions for database tables and relations.
+- **Data Modeling.**
+- **Purpose:** Pydantic models for request validation and response serialization.
 
 ### `schemas/`
 **Data Modeling.**
-- **Purpose:** Pydantic models for request validation and response serialization.
+- **Purpose:** Definitions for database tables and relations.
 
 ### `storage/`
 **Data Access Layer.**
