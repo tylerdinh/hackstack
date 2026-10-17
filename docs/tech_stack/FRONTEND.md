@@ -1,10 +1,14 @@
 # Frontend
 
+## Imports
+
+`@/` points to `frontend/src/`, so `import Button from '@/components/Button'` works from any depth.
+
 ## Source Code Folder (`frontend/src/`)
 
 ### `api/`
 **Communication Layer.**
-- **Purpose:** Centralizes all outgoing network requests via base configurations, clients, and global interceptors.
+- **Purpose:** Centralizes all outgoing network requests via base configurations, clients, and global interceptors. Call the backend with relative `/api/...` URLs: Vite proxies them in development, and the backend serves the frontend itself in production. `client.ts` provides `apiFetch` (adds the login token, throws on errors) and `supabase.ts` provides the Supabase client for login (see [STORAGE.md](STORAGE.md#authentication)).
 
 ### `assets/`
 **Static Resources.**
@@ -24,7 +28,7 @@
 
 ### `pages/`
 **Route Orchestrators.**
-- **Purpose:** Entry points for your router, their jobs are to fetch data and pass it to features.
+- **Purpose:** Entry points for your router, their jobs are to fetch data and pass it to features. Routes are declared in `App.tsx` with [React Router](https://reactrouter.com).
 
 ### `stores/`
 **Global State Management.**
@@ -37,7 +41,3 @@
 ### `utils/`
 **Helper Functions.**
 - **Purpose:** Assist functions for things like formatting, validation, and math.
-
-### `testing/`
-**Quality Assurance.**
-- **Purpose:** Houses tests to ensure application stability, usually optional if you're rapidly prototyping.

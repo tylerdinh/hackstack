@@ -1,32 +1,61 @@
 # HackStack
-The best tech stack for rapid prototype development, designed to be as minimal and easy as possible.
+The best tech stack for rapid prototype development.
 
 ## Tech Stack
 
-Frontend: Vite with React (TypeScript + React Compiler), and Tailwind CSS, described specifically in docs/FRONTEND.md
+Frontend: Vite with React (TypeScript + React Compiler), and Tailwind CSS, described specifically in [docs/tech_stack/FRONTEND.md](docs/tech_stack/FRONTEND.md)
 
-Backend: FastAPI (Python), described specifically in docs/BACKEND.md
+Backend: FastAPI (Python, dependencies managed with [uv](https://docs.astral.sh/uv/)), described specifically in [docs/tech_stack/BACKEND.md](docs/tech_stack/BACKEND.md)
 
-Storage: Supabase, described specifically in docs/STORAGE.md
+Storage: Supabase, described specifically in [docs/tech_stack/STORAGE.md](docs/tech_stack/STORAGE.md)
 
 ## Build and Run
 
-Starting from the project root: 
+Prerequisites: [Node.js](https://nodejs.org) 22.12+ (`nvm use` picks it up from `.nvmrc`) and [uv](https://docs.astral.sh/uv/getting-started/installation/) (uv installs the pinned Python version from `backend/.python-version` for you).
+
+Copy `backend/.env.example` to `backend/.env` and fill in your Supabase credentials (Project Settings → API):
 ```
-npm install 
-npm run dev # The frontend/backend (concurrent!)
+cp backend/.env.example backend/.env
 ```
 
-Create a .env file in the /backend folder, populate with your information:
+Starting from the project root:
 ```
-SUPABASE_URL=hello.com
-SUPABASE_ANON_KEY=1234
-SUPABASE_SERVICE_ROLE_KEY=1234
+npm run setup # Install frontend and backend dependencies
+npm run dev   # The frontend/backend (concurrent!)
+```
+
+The frontend runs at http://localhost:8001 and the backend at http://localhost:8002 (check http://localhost:8002/api/health, and http://localhost:8002/docs for interactive API docs). To add a Python dependency, run `uv add <package>` from the `backend/` folder.
+
+### Scripts (run from the project root)
+
+| Command | What it does |
+| --- | --- |
+| `npm run setup` | Installs all Node and Python dependencies. |
+| `npm run dev` | Runs the frontend and backend with hot reload. |
+| `npm run frontend` / `npm run backend` | Runs just one side. |
+| `npm run build` | Type-checks and builds the frontend into `frontend/dist` (`npm start` runs this for you). |
+| `npm run lint` | Lints the frontend (ESLint) and backend (Ruff). |
+| `npm run format` | Auto-fixes and formats backend code with Ruff. |
+| `npm start` | Production: builds the frontend and serves everything from the backend at http://localhost:8002 (or `$PORT`). |
+
+### Deploying
+
+In production, FastAPI serves the built frontend alongside the API from a single port, so there's no CORS or proxy setup. The included `Dockerfile` packages both, so any host that runs Docker works. On [Render](https://render.com):
+
+1. Push the repo to GitHub, then in Render choose **New → Web Service** and pick the repo. Render detects the `Dockerfile`.
+2. Under **Environment**, add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. If the frontend uses login, also add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Render passes these into the build).
+3. Deploy. Render sets `PORT` and gives you a public URL; every push to `main` redeploys.
+
+[Railway](https://railway.com) and [Fly.io](https://fly.io) work the same way: point them at the repo and set the same variables. Don't upload `.env` files; set the variables in the host's dashboard.
+
+To try the production setup locally, run `npm start`, or with Docker:
+```
+docker build -t hackstack . && docker run -p 8002:8002 --env-file backend/.env hackstack
 ```
 
 ## Example
 
-Simple full-stack notetaker application, incorporating elements of the frontend/backend/storage.
+Simple full-stack notetaker application, incorporating elements of the frontend/backend/storage. Requests flow `api/` (routes) → `services/` (logic) → `storage/` (database).
 
 ### 1. Database Setup (Supabase)
 Run this SQL in your Supabase SQL Editor to create a table for the notes. Also, populate the backend/.env file with your project URL and service role key.
@@ -41,73 +70,120 @@ CREATE TABLE notes (
 
 ### 2. Backend Logic
 
-#### `backend/app/storage/supabase_utils.py`
-Add to the existing:
-```python
-from supabase import Client
+After pasting, run `npm run format` from the root to tidy up spacing and import order.
 
-supabase: Client = get_admin_client()
+#### `backend/app/storage/supabase_utils.py`
+Add to the bottom of the file:
+```python
+supabase = get_admin_client()
+
 
 def save_note(content: str):
-    return supabase.table("notes").insert({"content": content}).execute()
+    return supabase.table("notes").insert({"content": content}).execute().data
+
 
 def get_notes():
-    return supabase.table("notes").select("*").execute()
+    return supabase.table("notes").select("*").order("created_at").execute().data
+```
+
+#### `backend/app/schemas/note.py`
+Add:
+```python
+from pydantic import BaseModel
+
+
+class NoteCreate(BaseModel):
+    content: str
+```
+
+#### `backend/app/services/notes.py`
+Add:
+```python
+from app.storage.supabase_utils import get_notes, save_note
+
+
+def list_notes():
+    return get_notes()
+
+
+def create_note(content: str):
+    return save_note(content.strip())
+```
+
+#### `backend/app/api/notes.py`
+Add:
+```python
+from fastapi import APIRouter
+
+from app.schemas.note import NoteCreate
+from app.services import notes
+
+router = APIRouter(prefix="/api/notes")
+
+
+@router.get("")
+def read_notes():
+    return notes.list_notes()
+
+
+@router.post("")
+def create_note(note: NoteCreate):
+    return notes.create_note(note.content)
 ```
 
 #### `backend/app/main.py`
-Add to the existing:
+Add the import with the other imports at the top of the file:
 ```python
-from app.storage.supabase_utils import save_note, get_notes
-
-@app.get("/api/notes")
-async def read_notes():
-    return get_notes().data
-
-@app.post("/api/notes")
-async def create_note(note: dict):
-    return save_note(note["content"]).data
+from app.api.notes import router as notes_router
+```
+Then register the router below the `/api/health` route:
+```python
+app.include_router(notes_router)
 ```
 
 ### 3. Frontend Logic
 
 #### `frontend/src/api/notes.ts`
-Add:
+Add (relative URLs work because Vite proxies `/api` to the backend):
 ```typescript
-const API_URL = "http://localhost:8002";
-
 export const fetchNotes = async () => {
-  const res = await fetch(`${API_URL}/api/notes`);
+  const res = await fetch("/api/notes");
+  if (!res.ok) throw new Error(`Failed to load notes (${res.status})`);
   return res.json();
 };
 
 export const postNote = async (content: string) => {
-  const res = await fetch(`${API_URL}/api/notes`, {
+  const res = await fetch("/api/notes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
   });
+  if (!res.ok) throw new Error(`Failed to save note (${res.status})`);
   return res.json();
 };
 ```
 
-#### `frontend/src/App.tsx`
-Copy and change the entire file to:
+#### `frontend/src/pages/NotesPage.tsx`
+Add:
 ```tsx
 import { useEffect, useState } from 'react';
-import { fetchNotes, postNote } from './api/notes';
+import { fetchNotes, postNote } from '../api/notes';
 
 interface Note {
   id: number;
   content: string;
 }
 
-function App() {
+function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadNotes = () => fetchNotes().then(setNotes);
+  const loadNotes = () =>
+    fetchNotes()
+      .then(setNotes)
+      .catch((e: Error) => setError(e.message));
 
   useEffect(() => { loadNotes(); }, []);
 
@@ -116,10 +192,16 @@ function App() {
     if (!input.trim()) return;
 
     setLoading(true);
-    await postNote(input);
-    setInput('');
-    await loadNotes();
-    setLoading(false);
+    setError(null);
+    try {
+      await postNote(input);
+      setInput('');
+      await loadNotes();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -154,6 +236,13 @@ function App() {
           </button>
         </form>
 
+        {/* Error Message */}
+        {error && (
+          <p className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
         {/* Notes List */}
         <div className="space-y-3">
           {notes.length === 0 ? (
@@ -185,5 +274,15 @@ function App() {
   );
 }
 
-export default App;
+export default NotesPage;
+```
+
+#### `frontend/src/App.tsx`
+Add the import at the top of the file:
+```tsx
+import NotesPage from './pages/NotesPage'
+```
+Then add the route inside `<Routes>`, above the `"*"` route, and visit http://localhost:8001/notes:
+```tsx
+<Route path="/notes" element={<NotesPage />} />
 ```

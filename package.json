@@ -1,11 +1,19 @@
 {
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
+    "setup": "npm install && npm install --prefix frontend && cd backend && uv sync",
     "frontend": "cd frontend && npm run dev -- --port 8001",
-    "backend": "cd backend/app && fastapi dev main.py --port 8002",
-    "dev": "concurrently -n \"FE,BE\" -c \"cyan,magenta\" \"npm run frontend\" \"npm run backend\""
+    "backend": "cd backend && uv run fastapi dev app/main.py --port 8002",
+    "dev": "concurrently -n \"FE,BE\" -c \"cyan,magenta\" \"npm run frontend\" \"npm run backend\"",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run build && cd backend && uv run fastapi run app/main.py --port ${PORT:-8002}",
+    "lint": "npm run lint --prefix frontend && cd backend && uv run ruff check app && uv run ruff format --check app",
+    "format": "cd backend && uv run ruff check --fix app && uv run ruff format app"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
     "concurrently": "^9.2.1"
   }
 }

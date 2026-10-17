@@ -17,4 +17,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    // Forward /api requests to the FastAPI backend so the frontend can use relative URLs
+    proxy: {
+      "/api": "http://localhost:8002",
+    },
+  }
 })
